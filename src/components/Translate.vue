@@ -68,7 +68,7 @@
           <el-button v-if="isLangsSelected" type="primary" @click="handleUpload">
             <el-icon><UploadFilled /></el-icon>&nbsp;上传图片以进行翻译
           </el-button>
-          <el-tooltip v-else content="请先选择好源语言以及目标语言">
+          <el-tooltip v-else content="请先选择源语言以及目标语言">
             <el-button type="primary" @click="handleUpload" disabled>
               <el-icon><UploadFilled /></el-icon>&nbsp;上传图片以进行翻译
             </el-button>
