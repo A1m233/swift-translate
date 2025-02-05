@@ -13,6 +13,8 @@
           <el-input
           placeholder="输入以检索翻译"
           :prefix-icon="Search"
+          v-model="inputContent"
+          @input="handleInput"
           clearable/>
         </div>
       </div>
@@ -20,7 +22,7 @@
         <Translate
         componentType="listItem"
         :item-type="pageType"
-        v-for="item in store.lists[pageType].filter((_, index) => index >= (currentPage - 1) * 20 && index < currentPage * 20)"
+        v-for="item in pagedList"
         :key="item.id" 
         :item="item"/>
       </div>
@@ -41,18 +43,44 @@
   import {useStore} from '@/stores/store.js';
   import {computed, ref} from 'vue';
 
+  import { debounce } from '@/utils/utils.js';
+
   const store = useStore();
   
   const {title, pageType} = defineProps(['title', 'page-type']);
 
   const currentPage = ref(1);
+  const inputContent = ref("");
+  const filteredList = ref([]);
 
-  const total = computed(() => store.lists[pageType].length);
+  const total = computed(() =>
+  {
+    if (!filteredList.value)return 0;
+    return filteredList.value.length;
+  });
+  const pagedList = computed(() =>
+  {
+    return filteredList.value.filter((_, index) => index >= (currentPage.value - 1) * 20 && index < currentPage.value * 20);
+  });
 
   function handleCurrentChange(newPage)
   {
     currentPage.value = newPage;
   }
+  const handleInput = debounce(function(value)
+  {
+    if (value === '')
+    {
+      filteredList.value = store.lists[pageType];
+    }
+    else
+    {
+      filteredList.value = store.lists[pageType].filter(item =>
+      {
+        return item.leftTextareaContent.includes(inputContent.value) || item.rightTextareaContent.includes(inputContent.value)
+      });
+    }
+  }, 800);
 </script>
 
 <style scoped>

@@ -65,14 +65,19 @@
       </el-row>
       <el-row justify="center" v-if="componentType === 'pic'">
         <el-col :span="12" class="pic-buttons-wrapper">
-          <el-button v-if="isLangsSelected" type="primary" @click="handleUpload">
-            <el-icon><UploadFilled /></el-icon>&nbsp;上传图片以进行翻译
-          </el-button>
-          <el-tooltip v-else content="请先选择源语言以及目标语言">
-            <el-button type="primary" @click="handleUpload" disabled>
+          <el-upload
+          :on-progress="handleOnProgress"
+          :show-file-list="false"
+          :limit="1">
+            <el-button v-if="isLangsSelected" type="primary">
               <el-icon><UploadFilled /></el-icon>&nbsp;上传图片以进行翻译
             </el-button>
-          </el-tooltip>
+            <el-tooltip v-else content="请先选择源语言以及目标语言">
+              <el-button type="primary" disabled>
+                <el-icon><UploadFilled /></el-icon>&nbsp;上传图片以进行翻译
+              </el-button>
+            </el-tooltip>
+          </el-upload>
           <el-button type="warning" @click="handleReset">
             <el-icon><RefreshRight /></el-icon>&nbsp;重新选择语言和图片
           </el-button>
@@ -124,12 +129,14 @@
 <script setup>
   import { computed, onMounted, ref, watch } from "vue";
   import {useStore} from '@/stores/store.js';
+  import { APP_KEY, APP_ID, TEXT_API, PIC_API } from "@/constants/constant";
+  import { debounce } from "@/utils/utils.js";
 
   import $ from 'jquery';
   import CryptoJS from "crypto-js";
 
-  const appID = '23360d87caa1ec2a';
-  const appKey = 'RjYPpRVLNAwjrypvlvlclj6rBtQxmBpT';
+  const appID = APP_ID;
+  const appKey = APP_KEY;
   const code =
   {
     '中文': 'zh-CHS',
@@ -157,9 +164,10 @@
   const rightTextareaContent = ref("");
   const leftPlaceHolder = ref(componentType === 'text' ? '请输入文本' : '请选择源语言以及目标语言并上传图片');
   const rightPlaceHolder = ref(componentType === 'text' ? '请选择目标语言以进行翻译' : '请选择源语言以及目标语言并上传图片');
-  const textareaRows = ref(componentType === 'listItem' ? 2 : 15);
+  const textareaRows = ref(componentType === 'listItem' ? 5 : 15);
   const timeDisplayContent = ref(itemType === 'history' ? '翻译时间：' : '收藏时间：');
   const tooltipContent = ref('切换源语言与目标语言');
+  const upload = ref();
 
   const isLangsSelected = computed(() => sourceLang.value !== '选择源语言' && destLang.value !== '选择目标语言');
   const canClickSwitchButton = computed(() =>
@@ -200,16 +208,6 @@
     handleTranslate();
   });
 
-  function handleUpload()
-  {
-    /*
-    首先设置已上传，并更新placeHolder
-    然后分析图片，找到其中的文字，并更新placeHolder
-    最后进行翻译
-    */
-   isUploaded.value = true;
-   leftPlaceHolder.value = rightPlaceHolder.value = '提取文字中。。。';
-  }
   function handleReset()
   {
     sourceLang.value = '选择源语言';
@@ -272,7 +270,8 @@
   }
   function handleTranslate()
   {
-    if (destLang.value === '请选择语言' || !leftTextareaContent.value || componentType === 'listItem')return;
+    if (destLang.value === '请选择语言' || !leftTextareaContent.value || componentType !== 'text')return;
+    console.log(leftTextareaContent.value);
     item.id = store.id;
     store.increaseId();
     const salt = (new Date).getTime();
@@ -280,7 +279,7 @@
     const sign = CryptoJS.SHA256(appID + truncate(leftTextareaContent.value) + salt + curtime + appKey).toString(CryptoJS.enc.Hex);
     $.ajax(
     {
-      url: '/api/api',
+      url: TEXT_API,
       type: 'post',
       dataType: 'jsonp',
       data:
@@ -294,7 +293,7 @@
         signType: 'v3',
         curtime,
       },
-      success: function (data)
+      success: function(data)
       {
         rightTextareaContent.value = data.translation[0];
         if (data.errorCode !== '0')
@@ -324,24 +323,86 @@
   {
     store.fns['history']['deleteOnList'](item);
   }
-  function debounce(f, d)
+  async function imageToBase64(imgRaw)
   {
-    let timer;
-    return function(...args)
+    return new Promise((resolve, reject) =>
     {
-      clearTimeout(timer);
-      timer = setTimeout(() => f.apply(this, args), d);
-    };
+      const fr = new FileReader();
+      fr.readAsDataURL(imgRaw);
+      fr.onload = () =>
+      {
+        fr.result.startsWith('data:image/') ? resolve(fr.result.substr(22)) : reject();
+      }
+      fr.onerror = reject;
+    });
   }
-  handleTranslate = debounce(handleTranslate, 1000);
+  async function handleOnProgress(event, uploadFile)
+  {
+    console.log(uploadFile.raw);
+    isUploaded.value = true;
+    leftPlaceHolder.value = rightPlaceHolder.value = '提取文字中';
+    let imgBase = await imageToBase64(uploadFile.raw);
+    console.log(imgBase);
+    item.id = store.id;
+    store.increaseId();
+    const salt = (new Date).getTime();
+    const curtime = Math.round(new Date().getTime() / 1000);
+    const sign = CryptoJS.SHA256(appID + truncate(imgBase) + salt + curtime + appKey).toString(CryptoJS.enc.Hex);
+    $.ajax(
+    {
+      url: PIC_API,
+      type: 'post',
+      data:
+      {
+        type: '1',
+        q: imgBase,
+        appKey: appID,
+        salt,
+        from: code[sourceLang.value],
+        to: code[destLang.value],
+        sign,
+        signType: 'v3',
+        curtime,
+      },
+      success: function(data)
+      {
+        leftTextareaContent.value = rightTextareaContent.value = '';
+        data.resRegions.forEach(item =>
+        {
+          leftTextareaContent.value += item.context + '\n';
+          rightTextareaContent.value += item.tranContent;
+        });
+        if (data.errorCode !== '0')
+        {
+          leftTextareaContent.value = rightTextareaContent.value = '翻译出现了问题，请稍后重试。';
+        }
+        else if (data.errorCode === '0')
+        {
+          store.fns['history']['addToList'](
+          {
+            sourceLang: sourceLang.value,
+            destLang: destLang.value,
+            leftTextareaContent: leftTextareaContent.value,
+            rightTextareaContent: rightTextareaContent.value,
+            time: new Date(),
+            id: item.id,
+          });
+        }
+      },
+      error: function(xhr, status, error)
+      {
+        console.log(status);
+      }
+    });
+  }
 
   onMounted(() =>
   {
-    // store.fns['history']['clearList']();
     if (componentType === 'text')
     {
       langList.value = ['自动检测语言', ...langList.value];
       sourceLang.value = '自动检测语言';
+      handleTranslate = debounce(handleTranslate, 1000);
     }
     else if (componentType === 'listItem')
     {
