@@ -39,7 +39,7 @@
 
 <script setup>
   import { useRouter } from 'vue-router';
-  import { useStore } from '@/stores/store.js';
+  import { useStore } from '@/stores/store';
   import {onMounted} from 'vue';
 
   const store = useStore();

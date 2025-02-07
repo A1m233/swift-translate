@@ -7,7 +7,7 @@
 
 <script setup>
   import { RouterView } from 'vue-router';
-  import { useStore } from '@/stores/store.js';
+  import { useStore } from '@/stores/store';
   import {onMounted} from 'vue';
   import { useRouter } from 'vue-router';
 
@@ -16,7 +16,7 @@
 
   onMounted(() =>
   {
-    router.push(store.currentLocation);
-    console.log(`上次退出时所在路由：${store.currentLocation}`);
+    // router.push(store.currentLocation);
+    // console.log(`上次退出时所在路由：${store.currentLocation}`);
   });
 </script>

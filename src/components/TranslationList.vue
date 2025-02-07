@@ -40,10 +40,10 @@
 <script setup>
   import {Search} from '@element-plus/icons-vue';
   import Translate from './Translate.vue';
-  import {useStore} from '@/stores/store.js';
-  import {computed, ref} from 'vue';
+  import {useStore} from '@/stores/store';
+  import {computed, ref, watch} from 'vue';
 
-  import { debounce } from '@/utils/utils.js';
+  import { debounce } from '@/utils/utils';
 
   const store = useStore();
   
@@ -51,7 +51,7 @@
 
   const currentPage = ref(1);
   const inputContent = ref("");
-  const filteredList = ref([]);
+  const filteredList = ref(store.lists[pageType]);
 
   const total = computed(() =>
   {
@@ -63,12 +63,14 @@
     return filteredList.value.filter((_, index) => index >= (currentPage.value - 1) * 20 && index < currentPage.value * 20);
   });
 
+  watch(() => store.lists[pageType], () => handleFilter(inputContent.value), {deep: true});
   function handleCurrentChange(newPage)
   {
     currentPage.value = newPage;
   }
-  const handleInput = debounce(function(value)
+  function handleFilter(value)
   {
+    console.log(value);
     if (value === '')
     {
       filteredList.value = store.lists[pageType];
@@ -80,7 +82,8 @@
         return item.leftTextareaContent.includes(inputContent.value) || item.rightTextareaContent.includes(inputContent.value)
       });
     }
-  }, 800);
+  }
+  const handleInput = debounce(handleFilter, 800);
 </script>
 
 <style scoped>

@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": true,
+    "jsx": "preserve",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    // "baseUrl": "./",
+    "paths": {
+      "@/*": ["./src/*"]  // 配置别名 @ 指向 src 目录
+    },
+    "types": ["element-plus/global"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue"
+  ],
+  "exclude": [
+    "node_modules",  // 排除 node_modules 文件夹
+    "dist",           // 排除 dist 文件夹
+    "build",          // 排除 build 文件夹
+    "test"            // 排除 test 文件夹
+  ]
+}

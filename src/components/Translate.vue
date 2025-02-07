@@ -128,9 +128,9 @@
 
 <script setup>
   import { computed, onMounted, ref, watch } from "vue";
-  import {useStore} from '@/stores/store.js';
+  import {useStore} from '@/stores/store';
   import { APP_KEY, APP_ID, TEXT_API, PIC_API } from "@/constants/constant";
-  import { debounce } from "@/utils/utils.js";
+  import { debounce } from "@/utils/utils";
 
   import $ from 'jquery';
   import CryptoJS from "crypto-js";
