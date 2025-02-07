@@ -4,7 +4,11 @@
 
 ## 技术栈
 
-框架方面使用了Vue3；组件库方面使用了ElementPlus；全局状态管理使用了Pinia+Pinia Plugin Persistedstate，其中后者保证了数据的持久化；路由方面使用了VueRouter。
+框架方面使用了Vue3；
+组件库方面使用了ElementPlus；
+全局状态管理使用了Pinia+Pinia Plugin Persistedstate，其中后者保证了数据的持久化；
+路由方面使用了VueRouter；
+同时使用了TypeScript以进行类型检查
 
 ## 项目内容
 
