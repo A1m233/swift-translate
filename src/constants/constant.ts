@@ -13,3 +13,7 @@ export const code =
   '英文': 'en',
   '自动检测语言': 'auto',
 } as const;
+export const decode = Object.fromEntries(Object.entries(code).map(([key, value]) =>
+{
+  return [value, key];
+}));

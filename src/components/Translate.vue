@@ -131,7 +131,7 @@
   import { useStore } from '@/stores/store';
   import { APP_KEY, APP_ID, TEXT_API, PIC_API } from "@/constants/constant";
   import { debounce } from "@/utils/utils";
-  import { code } from "@/constants/constant";
+  import { code, decode } from "@/constants/constant";
 
   import $ from 'jquery';
   import CryptoJS from "crypto-js";
@@ -163,11 +163,14 @@
     signType: 'v3',
     curtime: number,
   };
+  interface PicTranslationParam extends TextTranslationParam
+  {
+    type: string,
+  };
   interface PicResponseItem
   {
     context: string,
     tranContent: string,
-    query: string, // 源语言
   };
 
   const store = useStore();
@@ -176,25 +179,21 @@
 
   const sourceLang = ref<LangType>('选择源语言');
   const destLang = ref<LangType>('选择目标语言');
-  const langList = ref(
-  [
-    '中文',
-    '日文',
-    '英文',
-  ]);
-  const leftTextareaStyle = ref("cursor: auto; background-color: white; padding-left: 3vh;");
-  const rightTextareaStyle = ref("cursor: auto; background-color: white;");
-  const isUploaded = ref(false);
-  const leftTextareaContent = ref("");
-  const rightTextareaContent = ref("");
-  const leftPlaceHolder = ref(componentType === 'text' ? '请输入文本' : '请选择源语言以及目标语言并上传图片');
-  const rightPlaceHolder = ref(componentType === 'text' ? '请选择目标语言以进行翻译' : '请选择源语言以及目标语言并上传图片');
-  const textareaRows = ref(componentType === 'listItem' ? 5 : 15);
-  const timeDisplayContent = ref(itemType === 'history' ? '翻译时间：' : '收藏时间：');
-  const tooltipContent = ref('切换源语言与目标语言');
+  const realSourceLang = ref<LangType>('选择源语言');
+  const langList = ref<string[]>(Object.keys(code).filter(element => !['选择源语言', '选择目标语言', '自动检测语言'].includes(element)));
+  const leftTextareaStyle = ref<string>("cursor: auto; background-color: white; padding-left: 3vh;");
+  const rightTextareaStyle = ref<string>("cursor: auto; background-color: white;");
+  const isUploaded = ref<boolean>(false);
+  const leftTextareaContent = ref<string>("");
+  const rightTextareaContent = ref<string>("");
+  const leftPlaceHolder = ref<string>(componentType === 'text' ? '请输入文本' : '请选择源语言以及目标语言并上传图片');
+  const rightPlaceHolder = ref<string>(componentType === 'text' ? '请选择目标语言以进行翻译' : '请选择源语言以及目标语言并上传图片');
+  const textareaRows = ref<number>(componentType === 'listItem' ? 5 : 15);
+  const timeDisplayContent = ref<string>(itemType === 'history' ? '翻译时间：' : '收藏时间：');
+  const tooltipContent = ref<string>('切换源语言与目标语言');
 
-  const isLangsSelected = computed(() => sourceLang.value !== '选择源语言' && destLang.value !== '选择目标语言');
-  const canClickSwitchButton = computed(() =>
+  const isLangsSelected = computed<boolean>(() => sourceLang.value !== '选择源语言' && destLang.value !== '选择目标语言');
+  const canClickSwitchButton = computed<boolean>(() =>
   {
     if (componentType === 'listItem')return false;
     if (isUploaded.value)
@@ -215,7 +214,7 @@
     tooltipContent.value = '切换源语言与目标语言';
     return true;
   });
-  const isStarred = computed(() =>
+  const isStarred = ref<boolean>((() =>
   {
     for (let it of store.lists['starred'])
     {
@@ -225,13 +224,27 @@
       }
     }
     return false;
-  });
+  })());
 
   watch(leftTextareaContent, () =>
   {
     handleTranslate();
   });
+  watch(() => store.lists['starred'], handleSearchItem, {deep: true});
 
+  function handleSearchItem()
+  {
+    console.log('changed');
+    for (let it of store.lists['starred'])
+    {
+      if (it.id === item.id)
+      {
+        isStarred.value = true;
+        return;
+      }
+    }
+    isStarred.value = false;
+  }
   function handleReset()
   {
     sourceLang.value = '选择源语言';
@@ -259,7 +272,7 @@
     {
       store.fns['starred']['addToList'](
       {
-        sourceLang: sourceLang.value,
+        sourceLang: realSourceLang.value,
         destLang: destLang.value,
         leftTextareaContent: leftTextareaContent.value,
         rightTextareaContent: rightTextareaContent.value,
@@ -297,6 +310,7 @@
     if (destLang.value === '选择目标语言' || !leftTextareaContent.value || componentType !== 'text')return;
     console.log(leftTextareaContent.value);
     item.id = store.id;
+    handleSearchItem();
     store.increaseId();
     const salt = (new Date).getTime();
     const curtime = Math.round(new Date().getTime() / 1000);
@@ -316,10 +330,11 @@
         sign,
         signType: 'v3',
         curtime,
-      },
+      } as TextTranslationParam,
       success: function(data)
       {
         rightTextareaContent.value = data.translation[0];
+        realSourceLang.value = decode[(data.l as string).split('2')[0] as keyof typeof decode] as LangType;
         if (data.errorCode !== '0')
         {
           rightTextareaContent.value = '翻译出现了问题，请稍后重试。';
@@ -328,7 +343,7 @@
         {
           store.fns['history']['addToList'](
           {
-            sourceLang: data.translation[0].query,
+            sourceLang: realSourceLang.value,
             destLang: destLang.value,
             leftTextareaContent: leftTextareaContent.value,
             rightTextareaContent: rightTextareaContent.value,
@@ -392,7 +407,7 @@
         sign,
         signType: 'v3',
         curtime,
-      } as TextTranslationParam,
+      } as PicTranslationParam,
       success: function(data)
       {
         leftTextareaContent.value = rightTextareaContent.value = '';
@@ -431,6 +446,7 @@
     {
       langList.value = ['自动检测语言', ...langList.value];
       sourceLang.value = '自动检测语言';
+      item.id = 0;
     }
     else if (componentType === 'listItem')
     {
