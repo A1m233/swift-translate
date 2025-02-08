@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { computed, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 
-import {TranslationItem} from '../types/type';
+import { TranslationItem } from '../types/type';
 
 interface Lists
 {

@@ -23,7 +23,7 @@
         componentType="listItem"
         :item-type="pageType"
         v-for="item in pagedList"
-        :key="item.id" 
+        :key="item.id"
         :item="item"/>
       </div>
       <div class="footer">
@@ -37,7 +37,7 @@
   </el-card>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import {Search} from '@element-plus/icons-vue';
   import Translate from './Translate.vue';
   import {useStore} from '@/stores/store';
@@ -45,30 +45,41 @@
 
   import { debounce } from '@/utils/utils';
 
+  import { TranslationItem } from '@/types/type';
+
+  type PageType = 'history' | 'starred';
+
+  interface Props
+  {
+    title: string,
+    pageType: PageType,
+  };
+  
   const store = useStore();
   
-  const {title, pageType} = defineProps(['title', 'page-type']);
+  const {title, pageType} = defineProps<Props>();
 
-  const currentPage = ref(1);
-  const inputContent = ref("");
-  const filteredList = ref(store.lists[pageType]);
+  const currentPage = ref<number>(1);
+  const inputContent = ref<string>("");
+  const filteredList = ref<TranslationItem[]>(store.lists[pageType] as TranslationItem[]);
 
-  const total = computed(() =>
+  const total = computed<number>(() =>
   {
     if (!filteredList.value)return 0;
     return filteredList.value.length;
   });
-  const pagedList = computed(() =>
+  const pagedList = computed<TranslationItem[]>(() =>
   {
     return filteredList.value.filter((_, index) => index >= (currentPage.value - 1) * 20 && index < currentPage.value * 20);
   });
 
   watch(() => store.lists[pageType], () => handleFilter(inputContent.value), {deep: true});
-  function handleCurrentChange(newPage)
+  
+  function handleCurrentChange(newPage: number)
   {
     currentPage.value = newPage;
   }
-  function handleFilter(value)
+  function handleFilter(value: string)
   {
     console.log(value);
     if (value === '')

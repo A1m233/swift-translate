@@ -5,7 +5,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { RouterView } from 'vue-router';
   import { useStore } from '@/stores/store';
   import {onMounted} from 'vue';

@@ -34,10 +34,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import TranslationList from '@/components/TranslationList.vue';
   import Header from '@/components/Header.vue';
-  import {ref} from 'vue';
 </script>
 
 <style scoped>

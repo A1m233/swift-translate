@@ -37,10 +37,9 @@
   </el-affix>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { useRouter } from 'vue-router';
   import { useStore } from '@/stores/store';
-  import {onMounted} from 'vue';
 
   const store = useStore();
   const router = useRouter();

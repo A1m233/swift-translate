@@ -126,31 +126,56 @@
   </el-card>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { computed, onMounted, ref, watch } from "vue";
-  import {useStore} from '@/stores/store';
+  import { useStore } from '@/stores/store';
   import { APP_KEY, APP_ID, TEXT_API, PIC_API } from "@/constants/constant";
   import { debounce } from "@/utils/utils";
+  import { code } from "@/constants/constant";
 
   import $ from 'jquery';
   import CryptoJS from "crypto-js";
 
+  import { UploadFile, UploadProgressEvent, UploadRawFile } from "element-plus";
+
+  import { TranslationItem, LangType } from "@/types/type"
+
   const appID = APP_ID;
   const appKey = APP_KEY;
-  const code =
+
+  type ComponentType = 'text' | 'pic' | 'listItem';
+  type ItemType = 'history' | 'starred';
+
+  interface Props
   {
-    '中文': 'zh-CHS',
-    '日文': 'ja',
-    '英文': 'en',
-    '自动检测语言': 'auto',
+    componentType: ComponentType,
+    itemType?: ItemType,
+    item?: TranslationItem,
+  };
+  interface TextTranslationParam
+  {
+    q: string,
+    appKey: string,
+    salt: number,
+    from: string,
+    to: string,
+    sign: string,
+    signType: 'v3',
+    curtime: number,
+  };
+  interface PicResponseItem
+  {
+    context: string,
+    tranContent: string,
+    query: string, // 源语言
   };
 
   const store = useStore();
 
-  const {componentType, itemType, item} = defineProps(['componentType', 'item-type', 'item']);
+  const {componentType, itemType, item=({} as TranslationItem)} = defineProps<Props>();
 
-  const sourceLang = ref('选择源语言');
-  const destLang = ref('选择目标语言');
+  const sourceLang = ref<LangType>('选择源语言');
+  const destLang = ref<LangType>('选择目标语言');
   const langList = ref(
   [
     '中文',
@@ -167,7 +192,6 @@
   const textareaRows = ref(componentType === 'listItem' ? 5 : 15);
   const timeDisplayContent = ref(itemType === 'history' ? '翻译时间：' : '收藏时间：');
   const tooltipContent = ref('切换源语言与目标语言');
-  const upload = ref();
 
   const isLangsSelected = computed(() => sourceLang.value !== '选择源语言' && destLang.value !== '选择目标语言');
   const canClickSwitchButton = computed(() =>
@@ -214,12 +238,12 @@
     destLang.value = '选择目标语言';
     isUploaded.value = false;
   }
-  function handleSourceCommand(command)
+  function handleSourceCommand(command: LangType)
   {
     sourceLang.value = command;
     handleTranslate();
   }
-  function handleDestCommand(command)
+  function handleDestCommand(command: LangType)
   {
     destLang.value = command;
     if (componentType === 'text')rightPlaceHolder.value = '请输入文本以进行翻译';
@@ -244,7 +268,7 @@
       });
     }
   }
-  function formatTimestamp(timestamp)
+  function formatTimestamp(timestamp: number)
   {
     const date = new Date(timestamp); // 将时间戳转换为 Date 对象
 
@@ -262,15 +286,15 @@
   {
     navigator.clipboard.writeText(rightTextareaContent.value);
   }
-  function truncate(q)
+  function truncate(q: string)
   {
     const len = q.length;
     if (len <= 20)return q;
     return q.substring(0, 10) + len + q.substring(len - 10, len);
   }
-  function handleTranslate()
+  const handleTranslate = debounce(() =>
   {
-    if (destLang.value === '请选择语言' || !leftTextareaContent.value || componentType !== 'text')return;
+    if (destLang.value === '选择目标语言' || !leftTextareaContent.value || componentType !== 'text')return;
     console.log(leftTextareaContent.value);
     item.id = store.id;
     store.increaseId();
@@ -304,17 +328,17 @@
         {
           store.fns['history']['addToList'](
           {
-            sourceLang: sourceLang.value,
+            sourceLang: data.translation[0].query,
             destLang: destLang.value,
             leftTextareaContent: leftTextareaContent.value,
             rightTextareaContent: rightTextareaContent.value,
-            time: new Date(),
+            time: Date.now(),
             id: item.id,
           });
         }
       } 
     });
-  }
+  }, 1000);
   function handleSwitch()
   {
     [sourceLang.value, destLang.value] = [destLang.value, sourceLang.value];
@@ -323,25 +347,30 @@
   {
     store.fns['history']['deleteOnList'](item);
   }
-  async function imageToBase64(imgRaw)
+  async function imageToBase64(imgRaw: File)
   {
-    return new Promise((resolve, reject) =>
+    return new Promise<string>((resolve, reject) =>
     {
       const fr = new FileReader();
       fr.readAsDataURL(imgRaw);
       fr.onload = () =>
       {
-        fr.result.startsWith('data:image/') ? resolve(fr.result.substr(22)) : reject();
+        // fr.result?.startsWith('data:image/') ? resolve(fr.result.substr(22)) : reject();
+        if (typeof fr.result === 'string')
+        {
+          resolve(fr.result.substr(22));
+        }
+        else reject();
       }
       fr.onerror = reject;
     });
   }
-  async function handleOnProgress(event, uploadFile)
+  async function handleOnProgress(event: UploadProgressEvent, uploadFile: UploadFile)
   {
     console.log(uploadFile.raw);
     isUploaded.value = true;
     leftPlaceHolder.value = rightPlaceHolder.value = '提取文字中';
-    let imgBase = await imageToBase64(uploadFile.raw);
+    let imgBase = await imageToBase64(uploadFile.raw as UploadRawFile);
     console.log(imgBase);
     item.id = store.id;
     store.increaseId();
@@ -363,14 +392,14 @@
         sign,
         signType: 'v3',
         curtime,
-      },
+      } as TextTranslationParam,
       success: function(data)
       {
         leftTextareaContent.value = rightTextareaContent.value = '';
-        data.resRegions.forEach(item =>
+        data.resRegions.forEach((responseItem: PicResponseItem) =>
         {
-          leftTextareaContent.value += item.context + '\n';
-          rightTextareaContent.value += item.tranContent;
+          leftTextareaContent.value += responseItem.context + '\n';
+          rightTextareaContent.value += responseItem.tranContent;
         });
         if (data.errorCode !== '0')
         {
@@ -384,7 +413,7 @@
             destLang: destLang.value,
             leftTextareaContent: leftTextareaContent.value,
             rightTextareaContent: rightTextareaContent.value,
-            time: new Date(),
+            time: Date.now(),
             id: item.id,
           });
         }
@@ -402,15 +431,14 @@
     {
       langList.value = ['自动检测语言', ...langList.value];
       sourceLang.value = '自动检测语言';
-      handleTranslate = debounce(handleTranslate, 1000);
     }
     else if (componentType === 'listItem')
     {
-      const elements = document.querySelectorAll('.el-dropdown.is-disabled');
-      elements.forEach(element =>
-      {
-        element.style.cursor = 'auto';
-      });
+      // const elements = document.querySelectorAll('.el-dropdown.is-disabled');
+      // elements.forEach(element =>
+      // {
+      //   (element as HTMLElement).style.cursor = 'auto';
+      // });
       sourceLang.value = item.sourceLang;
       destLang.value = item.destLang;
       leftTextareaContent.value = item.leftTextareaContent;

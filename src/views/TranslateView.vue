@@ -27,18 +27,20 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import TextTranslation from '@/components/TextTranslation.vue';
   import PictureTranslation from '@/components/PictureTranslation.vue';
   import Header from '@/components/Header.vue';
   import { ref } from 'vue';
+
+  type CurrentTab = 'TextTranslation' | 'PictureTranslation';
 
   const tabs =
   {
     TextTranslation,
     PictureTranslation,
   };
-  const currentTab = ref('TextTranslation');
+  const currentTab = ref<CurrentTab>('TextTranslation');
 </script>
 
 <style scoped>
